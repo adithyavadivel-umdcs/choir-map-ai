@@ -98,7 +98,7 @@ export default function App() {
 
           {/* Right main area: seating chart */}
           <div>
-            {chart && <SeatingChart chart={chart} displayUnit={displayUnit} />}
+            {chart && <SeatingChart chart={chart} displayUnit={displayUnit} onChartChange={setChart} />}
             {!chart && (
               <div className="bg-white rounded-2xl shadow-sm border border-dashed border-slate-200 flex flex-col items-center justify-center min-h-[480px] text-center p-8">
                 <div className="text-5xl mb-4 opacity-20">🎵</div>
