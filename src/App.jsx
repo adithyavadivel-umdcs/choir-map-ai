@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import SingerForm from './components/SingerForm';
 import SingerTable from './components/SingerTable';
 import SeatingChart from './components/SeatingChart';
 import EditSingerModal from './components/EditSingerModal';
+import ChoirSelector from './components/ChoirSelector';
 import { generateSeatingChart, findBestPlacementForSinger } from './utils/generateSeatingChart';
 
 const SAMPLE_SINGERS = [
@@ -24,59 +25,145 @@ const SAMPLE_SINGERS = [
   { id: '16', name: 'Paul Müller',    voicePart: 'Bass',    vocalStrength: 3, heightCm: 177, notes: '' },
 ];
 
+function makeChoir(name, singers = []) {
+  return { id: crypto.randomUUID(), name, singers, chart: null };
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem('choir-map-ai');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed.choirs) && parsed.choirs.length > 0) {
+        const validId = parsed.choirs.some((c) => c.id === parsed.activeChoirId)
+          ? parsed.activeChoirId
+          : parsed.choirs[0].id;
+        return { choirs: parsed.choirs, activeChoirId: validId };
+      }
+    }
+  } catch {}
+  const defaultChoir = makeChoir('My Choir', SAMPLE_SINGERS);
+  return { choirs: [defaultChoir], activeChoirId: defaultChoir.id };
+}
+
 export default function App() {
-  const [singers, setSingers] = useState(SAMPLE_SINGERS);
-  const [chart, setChart] = useState(null);
+  const [{ choirs, activeChoirId }, setState] = useState(loadState);
   const [displayUnit, setDisplayUnit] = useState('cm');
   const [selectedSinger, setSelectedSinger] = useState(null);
 
+  useEffect(() => {
+    localStorage.setItem('choir-map-ai', JSON.stringify({ choirs, activeChoirId }));
+  }, [choirs, activeChoirId]);
+
+  const activeChoir = choirs.find((c) => c.id === activeChoirId) ?? choirs[0];
+  const singers = activeChoir.singers;
+  const chart = activeChoir.chart;
+
+  // Updates only the currently active choir inside the choirs array.
+  function updateActiveChoir(updater) {
+    setState((prev) => ({
+      ...prev,
+      choirs: prev.choirs.map((c) =>
+        c.id === prev.activeChoirId ? { ...c, ...updater(c) } : c
+      ),
+    }));
+  }
+
+  // --- Singer handlers ---
+
   function handleAdd(singer) {
-    setSingers((prev) => [...prev, singer]);
-    if (chart) {
-      setChart((prev) => findBestPlacementForSinger(singer, prev));
-    }
+    updateActiveChoir((c) => ({
+      singers: [...c.singers, singer],
+      chart: c.chart ? findBestPlacementForSinger(singer, c.chart) : null,
+    }));
   }
 
   function handleRemove(id) {
-    setSingers((prev) => prev.filter((s) => s.id !== id));
-    setChart((prev) => {
-      if (!prev) return prev;
-      return prev.map((row) => ({
-        ...row,
-        singers: row.singers.filter((s) => s.id !== id),
-      }));
-    });
+    updateActiveChoir((c) => ({
+      singers: c.singers.filter((s) => s.id !== id),
+      chart: c.chart
+        ? c.chart.map((row) => ({ ...row, singers: row.singers.filter((s) => s.id !== id) }))
+        : null,
+    }));
   }
 
   function handleEdit(updatedSinger) {
-    setSingers((prev) => prev.map((s) => s.id === updatedSinger.id ? updatedSinger : s));
-    setChart((prev) => {
-      if (!prev) return prev;
-      return prev.map((row) => ({
-        ...row,
-        singers: row.singers.map((s) => s.id === updatedSinger.id ? updatedSinger : s),
-      }));
+    updateActiveChoir((c) => ({
+      singers: c.singers.map((s) => s.id === updatedSinger.id ? updatedSinger : s),
+      chart: c.chart
+        ? c.chart.map((row) => ({
+            ...row,
+            singers: row.singers.map((s) => s.id === updatedSinger.id ? updatedSinger : s),
+          }))
+        : null,
+    }));
+    setSelectedSinger(null);
+  }
+
+  function handleChartChange(newChart) {
+    updateActiveChoir(() => ({ chart: newChart }));
+  }
+
+  function handleGenerate() {
+    updateActiveChoir((c) => ({ chart: generateSeatingChart(c.singers) }));
+  }
+
+  // --- Choir management ---
+
+  function handleCreateChoir() {
+    const choir = makeChoir(`Choir ${choirs.length + 1}`);
+    setState((prev) => ({ choirs: [...prev.choirs, choir], activeChoirId: choir.id }));
+    setSelectedSinger(null);
+  }
+
+  function handleRenameChoir(id, name) {
+    setState((prev) => ({
+      ...prev,
+      choirs: prev.choirs.map((c) => c.id === id ? { ...c, name } : c),
+    }));
+  }
+
+  function handleDeleteChoir(id) {
+    setState((prev) => {
+      const remaining = prev.choirs.filter((c) => c.id !== id);
+      if (remaining.length === 0) {
+        const fallback = makeChoir('My Choir');
+        return { choirs: [fallback], activeChoirId: fallback.id };
+      }
+      const nextId = prev.activeChoirId === id ? remaining[0].id : prev.activeChoirId;
+      return { choirs: remaining, activeChoirId: nextId };
     });
     setSelectedSinger(null);
   }
 
-  function handleGenerate() {
-    setChart(generateSeatingChart(singers));
+  function handleSwitchChoir(id) {
+    setState((prev) => ({ ...prev, activeChoirId: id }));
+    setSelectedSinger(null);
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-violet-50 to-slate-100">
       {/* Header */}
       <header className="border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-4">
+          <div className="flex items-center gap-3 flex-shrink-0">
             <span className="text-2xl">🎵</span>
             <div>
               <h1 className="text-xl font-bold text-slate-900 leading-none">Choir Map AI</h1>
               <p className="text-xs text-slate-400 mt-0.5">Smart seating chart generator</p>
             </div>
           </div>
-          <div className="hidden sm:flex items-center gap-3">
+
+          <ChoirSelector
+            choirs={choirs}
+            activeChoirId={activeChoirId}
+            onSwitch={handleSwitchChoir}
+            onCreate={handleCreateChoir}
+            onRename={handleRenameChoir}
+            onDelete={handleDeleteChoir}
+          />
+
+          <div className="hidden sm:flex items-center gap-3 ml-auto flex-shrink-0">
             <span className="text-xs text-slate-400">
               {singers.length} singer{singers.length !== 1 ? 's' : ''}
               {chart ? ` • ${chart.length} rows` : ''}
@@ -120,7 +207,14 @@ export default function App() {
 
           {/* Right main area: seating chart */}
           <div>
-            {chart && <SeatingChart chart={chart} displayUnit={displayUnit} onChartChange={setChart} onEditRequest={setSelectedSinger} />}
+            {chart && (
+              <SeatingChart
+                chart={chart}
+                displayUnit={displayUnit}
+                onChartChange={handleChartChange}
+                onEditRequest={setSelectedSinger}
+              />
+            )}
             {!chart && (
               <div className="bg-white rounded-2xl shadow-sm border border-dashed border-slate-200 flex flex-col items-center justify-center min-h-[480px] text-center p-8">
                 <div className="text-5xl mb-4 opacity-20">🎵</div>
