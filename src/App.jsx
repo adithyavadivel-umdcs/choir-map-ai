@@ -4,6 +4,7 @@ import SingerTable from './components/SingerTable';
 import SeatingChart from './components/SeatingChart';
 import EditSingerModal from './components/EditSingerModal';
 import ChoirSelector from './components/ChoirSelector';
+import AttendancePanel from './components/AttendancePanel';
 import { generateSeatingChart, findBestPlacementForSinger } from './utils/generateSeatingChart';
 
 const SAMPLE_SINGERS = [
@@ -26,7 +27,14 @@ const SAMPLE_SINGERS = [
 ];
 
 function makeChoir(name, singers = []) {
-  return { id: crypto.randomUUID(), name, singers, chart: null };
+  return {
+    id: crypto.randomUUID(),
+    name,
+    singers,
+    chart: null,
+    attendanceSessions: [],
+    currentAttendance: null,
+  };
 }
 
 function loadState() {
@@ -50,6 +58,7 @@ export default function App() {
   const [{ choirs, activeChoirId }, setState] = useState(loadState);
   const [displayUnit, setDisplayUnit] = useState('cm');
   const [selectedSinger, setSelectedSinger] = useState(null);
+  const [view, setView] = useState('seating');
 
   useEffect(() => {
     localStorage.setItem('choir-map-ai', JSON.stringify({ choirs, activeChoirId }));
@@ -69,7 +78,7 @@ export default function App() {
     }));
   }
 
-  // --- Singer handlers ---
+  // ── Singer handlers ──────────────────────────────────────────────────────
 
   function handleAdd(singer) {
     updateActiveChoir((c) => ({
@@ -108,7 +117,7 @@ export default function App() {
     updateActiveChoir((c) => ({ chart: generateSeatingChart(c.singers) }));
   }
 
-  // --- Choir management ---
+  // ── Choir management ─────────────────────────────────────────────────────
 
   function handleCreateChoir() {
     const choir = makeChoir(`Choir ${choirs.length + 1}`);
@@ -139,6 +148,67 @@ export default function App() {
   function handleSwitchChoir(id) {
     setState((prev) => ({ ...prev, activeChoirId: id }));
     setSelectedSinger(null);
+  }
+
+  // ── Attendance handlers ──────────────────────────────────────────────────
+
+  function handleStartAttendance({ eventName, eventType, date, notes }) {
+    // Only store exceptions from "present"; missing entry = present by default
+    updateActiveChoir(() => ({
+      currentAttendance: { eventName, eventType, date, notes, statuses: {} },
+    }));
+  }
+
+  function handleMarkAttendance(singerId, status) {
+    // null means "present" — clears any stored exception
+    updateActiveChoir((c) => {
+      if (!c.currentAttendance) return {};
+      const newStatuses = { ...c.currentAttendance.statuses };
+      if (status === null || newStatuses[singerId] === status) {
+        delete newStatuses[singerId];
+      } else {
+        newStatuses[singerId] = status;
+      }
+      return { currentAttendance: { ...c.currentAttendance, statuses: newStatuses } };
+    });
+  }
+
+  function handleSaveAttendance() {
+    // Snapshot all current singers with resolved statuses at save time
+    updateActiveChoir((c) => {
+      if (!c.currentAttendance) return {};
+      const { statuses = {} } = c.currentAttendance;
+      const records = {};
+      for (const singer of c.singers) {
+        records[singer.id] = {
+          singerId: singer.id,
+          singerName: singer.name,
+          singerVoicePart: singer.voicePart,
+          status: statuses[singer.id] ?? 'present',
+        };
+      }
+      const saved = {
+        ...c.currentAttendance,
+        id: crypto.randomUUID(),
+        savedAt: new Date().toISOString(),
+        records,
+      };
+      return {
+        attendanceSessions: [...(c.attendanceSessions ?? []), saved],
+        currentAttendance: null,
+      };
+    });
+  }
+
+  function handleResetAttendance() {
+    updateActiveChoir((c) => {
+      if (!c.currentAttendance) return {};
+      return { currentAttendance: { ...c.currentAttendance, statuses: {} } };
+    });
+  }
+
+  function handleCancelAttendance() {
+    updateActiveChoir(() => ({ currentAttendance: null }));
   }
 
   return (
@@ -205,26 +275,68 @@ export default function App() {
             </button>
           </div>
 
-          {/* Right main area: seating chart */}
+          {/* Right main area: view tabs + content */}
           <div>
-            {chart && (
-              <SeatingChart
+            {/* View tabs */}
+            <div className="flex border-b border-slate-200 mb-5">
+              {[
+                { id: 'seating',    label: 'Seating Chart' },
+                { id: 'attendance', label: 'Attendance' },
+              ].map(({ id, label }) => (
+                <button
+                  key={id}
+                  onClick={() => setView(id)}
+                  className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors flex items-center gap-1.5 ${
+                    view === id
+                      ? 'border-violet-600 text-violet-600'
+                      : 'border-transparent text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {label}
+                  {id === 'attendance' && activeChoir.currentAttendance && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Seating chart view */}
+            {view === 'seating' && (
+              <>
+                {chart && (
+                  <SeatingChart
+                    chart={chart}
+                    displayUnit={displayUnit}
+                    onChartChange={handleChartChange}
+                    onEditRequest={setSelectedSinger}
+                  />
+                )}
+                {!chart && (
+                  <div className="bg-white rounded-2xl shadow-sm border border-dashed border-slate-200 flex flex-col items-center justify-center min-h-[480px] text-center p-8">
+                    <div className="text-5xl mb-4 opacity-20">🎵</div>
+                    <p className="font-medium text-slate-600">Your seating chart will appear here</p>
+                    <p className="text-sm text-slate-400 mt-2 max-w-xs">
+                      {singers.length === 0
+                        ? 'Add singers using the form, then click Generate.'
+                        : `${singers.length} singer${singers.length !== 1 ? 's' : ''} ready — click Generate to arrange them.`}
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Attendance view */}
+            {view === 'attendance' && (
+              <AttendancePanel
+                choir={activeChoir}
                 chart={chart}
                 displayUnit={displayUnit}
-                onChartChange={handleChartChange}
-                onEditRequest={setSelectedSinger}
+                onStart={handleStartAttendance}
+                onMark={handleMarkAttendance}
+                onSave={handleSaveAttendance}
+                onReset={handleResetAttendance}
+                onCancel={handleCancelAttendance}
               />
-            )}
-            {!chart && (
-              <div className="bg-white rounded-2xl shadow-sm border border-dashed border-slate-200 flex flex-col items-center justify-center min-h-[480px] text-center p-8">
-                <div className="text-5xl mb-4 opacity-20">🎵</div>
-                <p className="font-medium text-slate-600">Your seating chart will appear here</p>
-                <p className="text-sm text-slate-400 mt-2 max-w-xs">
-                  {singers.length === 0
-                    ? 'Add singers using the form, then click Generate.'
-                    : `${singers.length} singer${singers.length !== 1 ? 's' : ''} ready — click Generate to arrange them.`}
-                </p>
-              </div>
             )}
           </div>
 

@@ -40,6 +40,22 @@ const PART_COLORS = {
   },
 };
 
+// Attendance mode card styles — keyed by status (null = default present)
+const ATTENDANCE_STYLE = {
+  null:    { card: 'border-slate-200 bg-white hover:border-violet-300',         badge: 'bg-slate-100 text-slate-600',   short: null },
+  present: { card: 'border-emerald-300 bg-emerald-50 hover:border-emerald-400', badge: 'bg-emerald-100 text-emerald-700', short: 'P' },
+  absent:  { card: 'border-red-300 bg-red-50 hover:border-red-400',             badge: 'bg-red-100 text-red-700',        short: 'A' },
+  late:    { card: 'border-amber-300 bg-amber-50 hover:border-amber-400',       badge: 'bg-amber-100 text-amber-700',    short: 'L' },
+  excused: { card: 'border-sky-300 bg-sky-50 hover:border-sky-400',             badge: 'bg-sky-100 text-sky-700',        short: 'E' },
+};
+
+const POPOVER_OPTIONS = [
+  { status: null,      label: 'Present',      color: 'text-emerald-600' },
+  { status: 'absent',  label: 'Absent',       color: 'text-red-600' },
+  { status: 'late',    label: 'Late / Tardy', color: 'text-amber-600' },
+  { status: 'excused', label: 'Excused',      color: 'text-sky-600' },
+];
+
 const ROW_BG = ['bg-white', 'bg-slate-50', 'bg-slate-100'];
 
 function cardScale(n) {
@@ -49,7 +65,6 @@ function cardScale(n) {
   return         { px: 5,  py: 4,  nameFz: 10, badgeFz: 9,  notesFz: 9,  dotSz: 3, badgePx: 3, badgePy: 1, gap: 3 };
 }
 
-// Returns the row index containing singerId, or -1.
 function findSingerRow(chart, singerId) {
   for (let r = 0; r < chart.length; r++) {
     if (chart[r].singers.some((s) => s.id === singerId)) return r;
@@ -57,7 +72,6 @@ function findSingerRow(chart, singerId) {
   return -1;
 }
 
-// Returns a new chart with activeId moved next to overId (same or different row).
 function computeNewChart(chart, activeId, overId) {
   let srcRow = -1, srcIdx = -1;
   for (let r = 0; r < chart.length; r++) {
@@ -69,7 +83,7 @@ function computeNewChart(chart, activeId, overId) {
   let dstRow = -1, dstIdx = -1;
   if (typeof overId === 'string' && overId.startsWith('row-')) {
     dstRow = parseInt(overId.split('-')[1]);
-    dstIdx = chart[dstRow].singers.length; // append to end of target row
+    dstIdx = chart[dstRow].singers.length;
   } else {
     for (let r = 0; r < chart.length; r++) {
       const idx = chart[r].singers.findIndex((s) => s.id === overId);
@@ -84,14 +98,14 @@ function computeNewChart(chart, activeId, overId) {
     );
   }
 
-  // Cross-row move
   const next = chart.map((row) => ({ ...row, singers: [...row.singers] }));
   const [moved] = next[srcRow].singers.splice(srcIdx, 1);
   next[dstRow].singers.splice(dstIdx, 0, moved);
   return next;
 }
 
-// Pure display card — no DnD concerns.
+// ── Normal (drag-and-drop) singer card ─────────────────────────────────────
+
 function SingerCard({ singer, singerCount, displayUnit, onEdit }) {
   const colors = PART_COLORS[singer.voicePart] ?? {
     card: 'bg-slate-50 border-slate-200',
@@ -107,10 +121,7 @@ function SingerCard({ singer, singerCount, displayUnit, onEdit }) {
       style={{ padding: `${s.py}px ${s.px}px` }}
     >
       <div className="flex items-center mb-1" style={{ gap: 6 }}>
-        <span
-          className={`rounded-full flex-shrink-0 ${colors.dot}`}
-          style={{ width: s.dotSz, height: s.dotSz }}
-        />
+        <span className={`rounded-full flex-shrink-0 ${colors.dot}`} style={{ width: s.dotSz, height: s.dotSz }} />
         <span className="font-semibold text-slate-800 truncate flex-1 min-w-0" style={{ fontSize: s.nameFz }}>
           {singer.name}
         </span>
@@ -156,11 +167,8 @@ function SingerCard({ singer, singerCount, displayUnit, onEdit }) {
   );
 }
 
-// Draggable wrapper around SingerCard.
 function SortableSingerCard({ singer, singerCount, displayUnit, onEdit }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: singer.id,
-  });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: singer.id });
 
   return (
     <div
@@ -175,7 +183,66 @@ function SortableSingerCard({ singer, singerCount, displayUnit, onEdit }) {
   );
 }
 
-// Row container registered as a droppable so empty rows (and row backgrounds) accept drops.
+// ── Attendance mode singer card ─────────────────────────────────────────────
+
+function AttendanceSingerCard({ singer, singerCount, displayUnit, status, onClick }) {
+  const colors = PART_COLORS[singer.voicePart] ?? {
+    badge: 'bg-slate-100 text-slate-600',
+    dot: 'bg-slate-400',
+  };
+  const s = cardScale(singerCount);
+  const heightStr = formatHeight(singer.heightCm, displayUnit);
+  const atStyle = ATTENDANCE_STYLE[status] ?? ATTENDANCE_STYLE.null;
+
+  return (
+    <div
+      className={`border-2 rounded-xl text-left flex-1 flex flex-col overflow-hidden cursor-pointer select-none transition-colors ${atStyle.card}`}
+      style={{ flex: '1 1 0', minWidth: 0, padding: `${s.py}px ${s.px}px` }}
+      onClick={onClick}
+    >
+      <div className="flex items-center mb-1" style={{ gap: 6 }}>
+        <span className={`rounded-full flex-shrink-0 ${colors.dot}`} style={{ width: s.dotSz, height: s.dotSz }} />
+        <span className="font-semibold text-slate-800 truncate flex-1 min-w-0" style={{ fontSize: s.nameFz }}>
+          {singer.name}
+        </span>
+        {atStyle.short && (
+          <span
+            className={`flex-shrink-0 font-bold rounded-full ${atStyle.badge}`}
+            style={{ fontSize: Math.max(9, s.badgeFz - 1), padding: `${s.badgePy}px ${s.badgePx}px` }}
+          >
+            {atStyle.short}
+          </span>
+        )}
+      </div>
+      <div className="flex items-center flex-nowrap mb-1 overflow-hidden" style={{ gap: 4 }}>
+        <span
+          className={`inline-block font-medium rounded-full flex-shrink-0 ${colors.badge}`}
+          style={{ fontSize: s.badgeFz, padding: `${s.badgePy}px ${s.badgePx}px` }}
+        >
+          {singer.voicePart}
+        </span>
+        {heightStr && (
+          <span className="text-slate-400 truncate min-w-0" style={{ fontSize: s.notesFz }}>{heightStr}</span>
+        )}
+      </div>
+      <div className="flex" style={{ gap: 2 }}>
+        {[1, 2, 3, 4, 5].map((i) => (
+          <span
+            key={i}
+            className={`rounded-full ${i <= singer.vocalStrength ? 'bg-violet-400' : 'bg-slate-200'}`}
+            style={{ width: s.dotSz, height: s.dotSz }}
+          />
+        ))}
+      </div>
+      {singer.notes && (
+        <p className="text-slate-400 mt-auto pt-1 truncate" style={{ fontSize: s.notesFz }} title={singer.notes}>
+          {singer.notes}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function DroppableRow({ id, style, children }) {
   const { setNodeRef } = useDroppable({ id });
   return (
@@ -185,26 +252,47 @@ function DroppableRow({ id, style, children }) {
   );
 }
 
-export default function SeatingChart({ chart, displayUnit, onChartChange = () => {}, onEditRequest }) {
+// ── Main component ──────────────────────────────────────────────────────────
+
+export default function SeatingChart({
+  chart,
+  displayUnit,
+  onChartChange = () => {},
+  onEditRequest,
+  attendanceMode = false,
+  attendanceStatuses = {},
+  onAttendanceStatusChange,
+}) {
   const [localChart, setLocalChart] = useState(chart);
   const [activeId, setActiveId]     = useState(null);
   const [overRowIdx, setOverRowIdx] = useState(null);
+  const [attendancePopover, setAttendancePopover] = useState(null);
+  // attendancePopover: { singerId, singerName, x, y } | null
 
-  // Keep localChart in sync when a new chart is generated.
   useEffect(() => { setLocalChart(chart); }, [chart]);
+
+  // Close attendance popover on outside click
+  useEffect(() => {
+    if (!attendancePopover) return;
+    function handleOutside() { setAttendancePopover(null); }
+    function handleEsc(e) { if (e.key === 'Escape') setAttendancePopover(null); }
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('keydown', handleEsc);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('keydown', handleEsc);
+    };
+  }, [attendancePopover]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  // Singer being dragged — used for the DragOverlay.
   const activeSinger = activeId
     ? localChart.flatMap((r) => r.singers).find((s) => s.id === activeId) ?? null
     : null;
 
-  function handleDragStart({ active }) {
-    setActiveId(active.id);
-  }
+  function handleDragStart({ active }) { setActiveId(active.id); }
 
   function handleDragOver({ active, over }) {
     if (!over) { setOverRowIdx(null); return; }
@@ -213,7 +301,6 @@ export default function SeatingChart({ chart, displayUnit, onChartChange = () =>
     const dstRow = typeof overId === 'string' && overId.startsWith('row-')
       ? parseInt(overId.split('-')[1])
       : findSingerRow(localChart, overId);
-    // Only highlight the destination row when it differs from the source.
     setOverRowIdx(dstRow !== -1 && dstRow !== srcRow ? dstRow : null);
   }
 
@@ -226,28 +313,49 @@ export default function SeatingChart({ chart, displayUnit, onChartChange = () =>
     onChartChange(next);
   }
 
-  function handleDragCancel() {
-    setActiveId(null);
-    setOverRowIdx(null);
+  function handleDragCancel() { setActiveId(null); setOverRowIdx(null); }
+
+  function handleAttendanceCardClick(e, singer) {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+
+    // Toggle: clicking the same card again closes the popover
+    if (attendancePopover?.singerId === singer.id) {
+      setAttendancePopover(null);
+      return;
+    }
+
+    // Position: prefer below card, flip above if near bottom of viewport
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const popoverH = 168; // approximate height of popover
+    const top = spaceBelow > popoverH + 10 ? rect.bottom + 6 : rect.top - popoverH - 6;
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - 184));
+
+    setAttendancePopover({ singerId: singer.id, singerName: singer.name, top, left });
   }
 
   const totalSingers = localChart.reduce((sum, row) => sum + row.singers.length, 0);
   const partCounts = {};
   localChart.forEach((row) =>
-    row.singers.forEach((s) => {
-      partCounts[s.voicePart] = (partCounts[s.voicePart] || 0) + 1;
-    })
+    row.singers.forEach((s) => { partCounts[s.voicePart] = (partCounts[s.voicePart] || 0) + 1; })
   );
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-visible">
       {/* Header */}
       <div className="px-6 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-800">Seating Chart</h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {totalSingers} singers across {localChart.length} rows
-          </p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-800">Seating Chart</h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {totalSingers} singers across {localChart.length} rows
+            </p>
+          </div>
+          {attendanceMode && (
+            <span className="text-xs font-semibold px-2 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+              Attendance Mode
+            </span>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           {Object.entries(PART_COLORS).map(([part, colors]) =>
@@ -268,7 +376,7 @@ export default function SeatingChart({ chart, displayUnit, onChartChange = () =>
         Stage / Audience
       </div>
 
-      {/* Rows — wrapped in a single DndContext */}
+      {/* Rows */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -282,7 +390,7 @@ export default function SeatingChart({ chart, displayUnit, onChartChange = () =>
             <div
               key={idx}
               className={`rounded-xl p-4 transition-all ${ROW_BG[idx]} ${
-                overRowIdx === idx ? 'ring-2 ring-violet-300 bg-violet-50/40' : ''
+                !attendanceMode && overRowIdx === idx ? 'ring-2 ring-violet-300 bg-violet-50/40' : ''
               }`}
             >
               <div className="flex items-center gap-2 mb-3">
@@ -291,47 +399,108 @@ export default function SeatingChart({ chart, displayUnit, onChartChange = () =>
                 </span>
                 <span className="text-xs text-slate-400">— {row.singers.length} singers</span>
               </div>
-              <SortableContext
-                items={row.singers.map((s) => s.id)}
-                strategy={horizontalListSortingStrategy}
-              >
-                <DroppableRow
-                  id={`row-${idx}`}
+
+              {attendanceMode ? (
+                // Attendance: plain clickable cards, no dnd
+                <div
+                  className="flex flex-nowrap items-stretch min-h-[56px]"
                   style={{ gap: cardScale(Math.max(1, row.singers.length)).gap }}
                 >
                   {row.singers.map((singer) => (
-                    <SortableSingerCard
+                    <AttendanceSingerCard
                       key={singer.id}
                       singer={singer}
                       singerCount={row.singers.length}
                       displayUnit={displayUnit}
-                      onEdit={onEditRequest ? () => onEditRequest(singer) : undefined}
+                      status={attendanceStatuses[singer.id] ?? null}
+                      onClick={(e) => handleAttendanceCardClick(e, singer)}
                     />
                   ))}
                   {row.singers.length === 0 && (
-                    <span className="text-xs text-slate-400 italic self-center px-2">
-                      Drop singers here
-                    </span>
+                    <span className="text-xs text-slate-400 italic self-center px-2">Empty row</span>
                   )}
-                </DroppableRow>
-              </SortableContext>
+                </div>
+              ) : (
+                // Normal: sortable dnd cards
+                <SortableContext
+                  items={row.singers.map((s) => s.id)}
+                  strategy={horizontalListSortingStrategy}
+                >
+                  <DroppableRow
+                    id={`row-${idx}`}
+                    style={{ gap: cardScale(Math.max(1, row.singers.length)).gap }}
+                  >
+                    {row.singers.map((singer) => (
+                      <SortableSingerCard
+                        key={singer.id}
+                        singer={singer}
+                        singerCount={row.singers.length}
+                        displayUnit={displayUnit}
+                        onEdit={onEditRequest ? () => onEditRequest(singer) : undefined}
+                      />
+                    ))}
+                    {row.singers.length === 0 && (
+                      <span className="text-xs text-slate-400 italic self-center px-2">
+                        Drop singers here
+                      </span>
+                    )}
+                  </DroppableRow>
+                </SortableContext>
+              )}
             </div>
           ))}
         </div>
 
-        {/* Ghost card that follows the cursor during drag */}
-        <DragOverlay>
-          {activeSinger ? (
-            <div style={{ width: 148 }} className="rotate-1 scale-105 shadow-2xl opacity-90">
-              <SingerCard singer={activeSinger} singerCount={1} displayUnit={displayUnit} />
-            </div>
-          ) : null}
-        </DragOverlay>
+        {!attendanceMode && (
+          <DragOverlay>
+            {activeSinger ? (
+              <div style={{ width: 148 }} className="rotate-1 scale-105 shadow-2xl opacity-90">
+                <SingerCard singer={activeSinger} singerCount={1} displayUnit={displayUnit} />
+              </div>
+            ) : null}
+          </DragOverlay>
+        )}
       </DndContext>
 
       <div className="px-6 pb-4 text-xs text-slate-400 text-center">
-        Drag cards to rearrange. Vocal strength dots (violet) indicate volume level.
+        {attendanceMode
+          ? 'Click a singer card to mark attendance. Everyone is Present by default.'
+          : 'Drag cards to rearrange. Vocal strength dots (violet) indicate volume level.'}
       </div>
+
+      {/* Attendance status popover — fixed position, not clipped by overflow */}
+      {attendancePopover && (
+        <div
+          style={{ position: 'fixed', top: attendancePopover.top, left: attendancePopover.left, zIndex: 200, width: 176 }}
+          className="bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <div className="px-3 py-2 border-b border-slate-100">
+            <p className="text-xs font-semibold text-slate-500 truncate">{attendancePopover.singerName}</p>
+          </div>
+          {POPOVER_OPTIONS.map(({ status, label, color }) => {
+            const currentStatus = attendanceStatuses[attendancePopover.singerId] ?? null;
+            const isSelected = currentStatus === status;
+            return (
+              <button
+                key={label}
+                onClick={() => {
+                  onAttendanceStatusChange?.(attendancePopover.singerId, status);
+                  setAttendancePopover(null);
+                }}
+                className={`w-full text-left px-3 py-2.5 text-sm font-medium flex items-center gap-2.5 transition-colors ${
+                  isSelected ? 'bg-slate-100 font-semibold' : 'hover:bg-slate-50'
+                }`}
+              >
+                <span className={`text-base leading-none flex-shrink-0 ${color}`}>
+                  {isSelected ? '●' : '○'}
+                </span>
+                <span className={isSelected ? color : 'text-slate-700'}>{label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
