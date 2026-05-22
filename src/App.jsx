@@ -6,6 +6,7 @@ import EditSingerModal from './components/EditSingerModal';
 import ChoirSelector from './components/ChoirSelector';
 import AttendancePanel from './components/AttendancePanel';
 import { generateSeatingChart, findBestPlacementForSinger } from './utils/generateSeatingChart';
+import { exportSeatingMapPdf } from './utils/exportSeatingMapPdf';
 
 const SAMPLE_SINGERS = [
   { id: '1',  name: 'Alice Monroe',   voicePart: 'Soprano', vocalStrength: 5, heightCm: 162, notes: 'Section lead' },
@@ -305,12 +306,22 @@ export default function App() {
             {view === 'seating' && (
               <>
                 {chart && (
-                  <SeatingChart
-                    chart={chart}
-                    displayUnit={displayUnit}
-                    onChartChange={handleChartChange}
-                    onEditRequest={setSelectedSinger}
-                  />
+                  <>
+                    <div className="flex justify-end mb-3">
+                      <button
+                        onClick={() => exportSeatingMapPdf(chart, activeChoir.name)}
+                        className="text-xs font-semibold text-violet-600 hover:text-violet-800 px-3 py-1.5 rounded-lg border border-violet-200 hover:border-violet-400 bg-white transition-colors"
+                      >
+                        Export Seating Map PDF
+                      </button>
+                    </div>
+                    <SeatingChart
+                      chart={chart}
+                      displayUnit={displayUnit}
+                      onChartChange={handleChartChange}
+                      onEditRequest={setSelectedSinger}
+                    />
+                  </>
                 )}
                 {!chart && (
                   <div className="bg-white rounded-2xl shadow-sm border border-dashed border-slate-200 flex flex-col items-center justify-center min-h-[480px] text-center p-8">
