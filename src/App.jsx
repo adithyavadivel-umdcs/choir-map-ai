@@ -45,7 +45,7 @@ export default function App() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-violet-50 to-slate-100">
       {/* Header */}
       <header className="border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="text-2xl">🎵</span>
             <div>
@@ -54,42 +54,49 @@ export default function App() {
             </div>
           </div>
           <div className="text-xs text-slate-400 hidden sm:block">
-            {singers.length} singer{singers.length !== 1 ? 's' : ''} • 3 rows
+            {singers.length} singer{singers.length !== 1 ? 's' : ''}
+            {chart ? ` • ${chart.length} rows` : ''}
           </div>
         </div>
       </header>
 
       {/* Main content */}
-      <main className="max-w-5xl mx-auto px-6 py-8 space-y-6">
-        {/* Singer input form */}
-        <SingerForm onAdd={handleAdd} />
+      <main className="max-w-7xl mx-auto px-6 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-start">
 
-        {/* Singer list */}
-        <SingerTable singers={singers} onRemove={handleRemove} />
+          {/* Left sidebar: form + roster + generate */}
+          <div className="flex flex-col gap-4">
+            <SingerForm onAdd={handleAdd} />
+            <SingerTable singers={singers} onRemove={handleRemove} />
+            <button
+              onClick={handleGenerate}
+              disabled={singers.length === 0}
+              className="w-full bg-violet-600 hover:bg-violet-700 active:bg-violet-800 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-6 py-3 rounded-xl shadow-lg shadow-violet-200 transition-all hover:shadow-violet-300 hover:-translate-y-0.5 active:translate-y-0"
+            >
+              Generate Seating Chart
+            </button>
+          </div>
 
-        {/* Generate button */}
-        <div className="flex justify-center">
-          <button
-            onClick={handleGenerate}
-            disabled={singers.length === 0}
-            className="bg-violet-600 hover:bg-violet-700 active:bg-violet-800 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-8 py-3 rounded-xl shadow-lg shadow-violet-200 transition-all hover:shadow-violet-300 hover:-translate-y-0.5 active:translate-y-0 text-base"
-          >
-            Generate Seating Chart
-          </button>
+          {/* Right main area: seating chart */}
+          <div>
+            {chart && <SeatingChart chart={chart} />}
+            {!chart && (
+              <div className="bg-white rounded-2xl shadow-sm border border-dashed border-slate-200 flex flex-col items-center justify-center min-h-[480px] text-center p-8">
+                <div className="text-5xl mb-4 opacity-20">🎵</div>
+                <p className="font-medium text-slate-600">Your seating chart will appear here</p>
+                <p className="text-sm text-slate-400 mt-2 max-w-xs">
+                  {singers.length === 0
+                    ? 'Add singers using the form, then click Generate.'
+                    : `${singers.length} singer${singers.length !== 1 ? 's' : ''} ready — click Generate to arrange them.`}
+                </p>
+              </div>
+            )}
+          </div>
+
         </div>
-
-        {/* Seating chart */}
-        {chart && <SeatingChart chart={chart} />}
-
-        {/* Empty chart prompt */}
-        {!chart && singers.length > 0 && (
-          <p className="text-center text-sm text-slate-400">
-            Click "Generate Seating Chart" to arrange your singers.
-          </p>
-        )}
       </main>
 
-      <footer className="max-w-5xl mx-auto px-6 py-6 text-center text-xs text-slate-400 border-t border-slate-200 mt-4">
+      <footer className="max-w-7xl mx-auto px-6 py-4 text-center text-xs text-slate-400 border-t border-slate-200 mt-6">
         Choir Map AI — MVP demo
       </footer>
     </div>
