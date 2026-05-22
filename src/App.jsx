@@ -37,7 +37,13 @@ export default function App() {
 
   function handleRemove(id) {
     setSingers((prev) => prev.filter((s) => s.id !== id));
-    setChart(null);
+    setChart((prev) => {
+      if (!prev) return prev;
+      return prev.map((row) => ({
+        ...row,
+        singers: row.singers.filter((s) => s.id !== id),
+      }));
+    });
   }
 
   function handleGenerate() {
