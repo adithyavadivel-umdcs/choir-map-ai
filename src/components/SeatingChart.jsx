@@ -1,3 +1,5 @@
+import { formatHeight } from '../utils/heightUtils';
+
 const PART_COLORS = {
   Soprano: {
     card: 'bg-pink-50 border-pink-200',
@@ -30,13 +32,14 @@ function cardScale(n) {
   return         { px: 5,  py: 4,  nameFz: 10, badgeFz: 9,  notesFz: 9,  dotSz: 3, badgePx: 3, badgePy: 1, gap: 3 };
 }
 
-function SingerCard({ singer, singerCount }) {
+function SingerCard({ singer, singerCount, displayUnit }) {
   const colors = PART_COLORS[singer.voicePart] ?? {
     card: 'bg-slate-50 border-slate-200',
     badge: 'bg-slate-100 text-slate-600',
     dot: 'bg-slate-400',
   };
   const s = cardScale(singerCount);
+  const heightStr = formatHeight(singer.heightCm, displayUnit);
 
   return (
     <div
@@ -55,13 +58,20 @@ function SingerCard({ singer, singerCount }) {
           {singer.name}
         </span>
       </div>
-      <span
-        className={`inline-block font-medium rounded-full ${colors.badge}`}
-        style={{ fontSize: s.badgeFz, padding: `${s.badgePy}px ${s.badgePx}px` }}
-      >
-        {singer.voicePart}
-      </span>
-      <div className="flex mt-1" style={{ gap: 2 }}>
+      <div className="flex items-center flex-wrap mb-1" style={{ gap: 4 }}>
+        <span
+          className={`inline-block font-medium rounded-full ${colors.badge}`}
+          style={{ fontSize: s.badgeFz, padding: `${s.badgePy}px ${s.badgePx}px` }}
+        >
+          {singer.voicePart}
+        </span>
+        {heightStr && (
+          <span className="text-slate-400" style={{ fontSize: s.notesFz }}>
+            {heightStr}
+          </span>
+        )}
+      </div>
+      <div className="flex" style={{ gap: 2 }}>
         {[1, 2, 3, 4, 5].map((i) => (
           <span
             key={i}
@@ -83,12 +93,11 @@ function SingerCard({ singer, singerCount }) {
   );
 }
 
-export default function SeatingChart({ chart }) {
+export default function SeatingChart({ chart, displayUnit }) {
   if (!chart || chart.length === 0) return null;
 
   const totalSingers = chart.reduce((sum, row) => sum + row.singers.length, 0);
 
-  // Part summary
   const partCounts = {};
   chart.forEach((row) => {
     row.singers.forEach((s) => {
@@ -136,7 +145,12 @@ export default function SeatingChart({ chart }) {
             </div>
             <div className="flex flex-nowrap" style={{ gap: cardScale(row.singers.length).gap }}>
               {row.singers.map((singer) => (
-                <SingerCard key={singer.id} singer={singer} singerCount={row.singers.length} />
+                <SingerCard
+                  key={singer.id}
+                  singer={singer}
+                  singerCount={row.singers.length}
+                  displayUnit={displayUnit}
+                />
               ))}
               {row.singers.length === 0 && (
                 <span className="text-xs text-slate-400 italic">Empty row</span>

@@ -41,7 +41,7 @@ export function generateSeatingChart(singers) {
 
   // For each part, sort taller singers toward the back (higher row index)
   for (const part of VOICE_PART_ORDER) {
-    byPart[part].sort((a, b) => (Number(a.height) || 0) - (Number(b.height) || 0));
+    byPart[part].sort((a, b) => (Number(a.heightCm) || 0) - (Number(b.heightCm) || 0));
   }
 
   // Build rows: assign voice parts to rows in a round-robin so each row has

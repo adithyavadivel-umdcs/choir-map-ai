@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { formatHeight } from '../utils/heightUtils';
 
 const PART_COLORS = {
   Soprano: 'bg-pink-100 text-pink-700',
@@ -32,7 +33,7 @@ function StrengthDots({ value, small = false }) {
   );
 }
 
-function RosterModal({ singers, onRemove, onClose }) {
+function RosterModal({ singers, onRemove, onClose, displayUnit }) {
   useEffect(() => {
     const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handleKey);
@@ -87,7 +88,7 @@ function RosterModal({ singers, onRemove, onClose }) {
                     </span>
                   </td>
                   <td className="px-4 py-3"><StrengthDots value={s.vocalStrength} /></td>
-                  <td className="px-4 py-3 text-slate-500">{s.height ? `${s.height} cm` : '—'}</td>
+                  <td className="px-4 py-3 text-slate-500">{formatHeight(s.heightCm, displayUnit) ?? '—'}</td>
                   <td className="px-4 py-3 text-slate-400 max-w-[180px] truncate">{s.notes || '—'}</td>
                   <td className="px-4 py-3 text-right">
                     <button
@@ -108,7 +109,7 @@ function RosterModal({ singers, onRemove, onClose }) {
   );
 }
 
-export default function SingerTable({ singers, onRemove }) {
+export default function SingerTable({ singers, onRemove, displayUnit }) {
   const [modalOpen, setModalOpen] = useState(false);
 
   if (singers.length === 0) {
@@ -179,6 +180,7 @@ export default function SingerTable({ singers, onRemove }) {
           singers={singers}
           onRemove={onRemove}
           onClose={() => setModalOpen(false)}
+          displayUnit={displayUnit}
         />
       )}
     </>

@@ -5,27 +5,28 @@ import SeatingChart from './components/SeatingChart';
 import { generateSeatingChart } from './utils/generateSeatingChart';
 
 const SAMPLE_SINGERS = [
-  { id: '1', name: 'Alice Monroe',   voicePart: 'Soprano', vocalStrength: 5, height: 162, notes: 'Section lead' },
-  { id: '2', name: 'Beth Carter',    voicePart: 'Soprano', vocalStrength: 3, height: 158, notes: '' },
-  { id: '3', name: 'Clara Singh',    voicePart: 'Soprano', vocalStrength: 4, height: 165, notes: 'Soloist' },
-  { id: '4', name: 'Diana Lopez',    voicePart: 'Soprano', vocalStrength: 2, height: 155, notes: '' },
-  { id: '5', name: 'Emma Johansson', voicePart: 'Alto',    vocalStrength: 4, height: 170, notes: '' },
-  { id: '6', name: 'Fiona Walsh',    voicePart: 'Alto',    vocalStrength: 5, height: 168, notes: 'Section lead' },
-  { id: '7', name: 'Grace Kim',      voicePart: 'Alto',    vocalStrength: 2, height: 160, notes: 'New member' },
-  { id: '8', name: 'Hannah Brown',   voicePart: 'Alto',    vocalStrength: 3, height: 163, notes: '' },
-  { id: '9', name: 'Ivan Torres',    voicePart: 'Tenor',   vocalStrength: 5, height: 178, notes: 'Soloist' },
-  { id: '10', name: 'James Patel',   voicePart: 'Tenor',   vocalStrength: 3, height: 175, notes: '' },
-  { id: '11', name: 'Kyle Nguyen',   voicePart: 'Tenor',   vocalStrength: 2, height: 172, notes: '' },
-  { id: '12', name: 'Leo Fischer',   voicePart: 'Tenor',   vocalStrength: 4, height: 180, notes: '' },
-  { id: '13', name: 'Marco Ricci',   voicePart: 'Bass',    vocalStrength: 5, height: 185, notes: 'Section lead' },
-  { id: '14', name: 'Nathan Black',  voicePart: 'Bass',    vocalStrength: 4, height: 183, notes: '' },
-  { id: '15', name: 'Owen Clarke',   voicePart: 'Bass',    vocalStrength: 2, height: 179, notes: 'New member' },
-  { id: '16', name: 'Paul Müller',   voicePart: 'Bass',    vocalStrength: 3, height: 177, notes: '' },
+  { id: '1',  name: 'Alice Monroe',   voicePart: 'Soprano', vocalStrength: 5, heightCm: 162, notes: 'Section lead' },
+  { id: '2',  name: 'Beth Carter',    voicePart: 'Soprano', vocalStrength: 3, heightCm: 158, notes: '' },
+  { id: '3',  name: 'Clara Singh',    voicePart: 'Soprano', vocalStrength: 4, heightCm: 165, notes: 'Soloist' },
+  { id: '4',  name: 'Diana Lopez',    voicePart: 'Soprano', vocalStrength: 2, heightCm: 155, notes: '' },
+  { id: '5',  name: 'Emma Johansson', voicePart: 'Alto',    vocalStrength: 4, heightCm: 170, notes: '' },
+  { id: '6',  name: 'Fiona Walsh',    voicePart: 'Alto',    vocalStrength: 5, heightCm: 168, notes: 'Section lead' },
+  { id: '7',  name: 'Grace Kim',      voicePart: 'Alto',    vocalStrength: 2, heightCm: 160, notes: 'New member' },
+  { id: '8',  name: 'Hannah Brown',   voicePart: 'Alto',    vocalStrength: 3, heightCm: 163, notes: '' },
+  { id: '9',  name: 'Ivan Torres',    voicePart: 'Tenor',   vocalStrength: 5, heightCm: 178, notes: 'Soloist' },
+  { id: '10', name: 'James Patel',    voicePart: 'Tenor',   vocalStrength: 3, heightCm: 175, notes: '' },
+  { id: '11', name: 'Kyle Nguyen',    voicePart: 'Tenor',   vocalStrength: 2, heightCm: 172, notes: '' },
+  { id: '12', name: 'Leo Fischer',    voicePart: 'Tenor',   vocalStrength: 4, heightCm: 180, notes: '' },
+  { id: '13', name: 'Marco Ricci',    voicePart: 'Bass',    vocalStrength: 5, heightCm: 185, notes: 'Section lead' },
+  { id: '14', name: 'Nathan Black',   voicePart: 'Bass',    vocalStrength: 4, heightCm: 183, notes: '' },
+  { id: '15', name: 'Owen Clarke',    voicePart: 'Bass',    vocalStrength: 2, heightCm: 179, notes: 'New member' },
+  { id: '16', name: 'Paul Müller',    voicePart: 'Bass',    vocalStrength: 3, heightCm: 177, notes: '' },
 ];
 
 export default function App() {
   const [singers, setSingers] = useState(SAMPLE_SINGERS);
   const [chart, setChart] = useState(null);
+  const [displayUnit, setDisplayUnit] = useState('cm');
 
   function handleAdd(singer) {
     setSingers((prev) => [...prev, singer]);
@@ -53,9 +54,27 @@ export default function App() {
               <p className="text-xs text-slate-400 mt-0.5">Smart seating chart generator</p>
             </div>
           </div>
-          <div className="text-xs text-slate-400 hidden sm:block">
-            {singers.length} singer{singers.length !== 1 ? 's' : ''}
-            {chart ? ` • ${chart.length} rows` : ''}
+          <div className="hidden sm:flex items-center gap-3">
+            <span className="text-xs text-slate-400">
+              {singers.length} singer{singers.length !== 1 ? 's' : ''}
+              {chart ? ` • ${chart.length} rows` : ''}
+            </span>
+            {/* Display unit toggle */}
+            <div className="flex rounded-md overflow-hidden border border-slate-200 text-xs">
+              {[['cm', 'cm'], ['ftin', 'ft/in']].map(([val, label]) => (
+                <button
+                  key={val}
+                  onClick={() => setDisplayUnit(val)}
+                  className={`px-2.5 py-1 font-medium transition-colors ${
+                    displayUnit === val
+                      ? 'bg-violet-600 text-white'
+                      : 'bg-white text-slate-500 hover:bg-slate-50'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </header>
@@ -67,7 +86,7 @@ export default function App() {
           {/* Left sidebar: form + roster + generate */}
           <div className="flex flex-col gap-4">
             <SingerForm onAdd={handleAdd} />
-            <SingerTable singers={singers} onRemove={handleRemove} />
+            <SingerTable singers={singers} onRemove={handleRemove} displayUnit={displayUnit} />
             <button
               onClick={handleGenerate}
               disabled={singers.length === 0}
@@ -79,7 +98,7 @@ export default function App() {
 
           {/* Right main area: seating chart */}
           <div>
-            {chart && <SeatingChart chart={chart} />}
+            {chart && <SeatingChart chart={chart} displayUnit={displayUnit} />}
             {!chart && (
               <div className="bg-white rounded-2xl shadow-sm border border-dashed border-slate-200 flex flex-col items-center justify-center min-h-[480px] text-center p-8">
                 <div className="text-5xl mb-4 opacity-20">🎵</div>

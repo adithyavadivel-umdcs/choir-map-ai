@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { feetInchesToCm, cmToFeetInches } from '../utils/heightUtils';
 
 const VOICE_PARTS = ['Soprano', 'Alto', 'Tenor', 'Bass'];
 
@@ -6,17 +7,39 @@ const emptyForm = {
   name: '',
   voicePart: 'Soprano',
   vocalStrength: 3,
-  height: '',
+  heightCm: '',
   notes: '',
 };
+
+const INPUT_CLASS =
+  'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent';
 
 export default function SingerForm({ onAdd }) {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState('');
+  const [inputUnit, setInputUnit] = useState('cm');
+  const [ftIn, setFtIn] = useState({ feet: '', inches: '' });
 
   function handleChange(e) {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function handleFtInChange(e) {
+    const { name, value } = e.target;
+    setFtIn((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function switchUnit(next) {
+    if (next === inputUnit) return;
+    if (next === 'ftin' && form.heightCm) {
+      const { feet, inches } = cmToFeetInches(Number(form.heightCm));
+      setFtIn({ feet: String(feet), inches: String(inches) });
+    } else if (next === 'cm' && (ftIn.feet || ftIn.inches)) {
+      const cm = feetInchesToCm(ftIn.feet, ftIn.inches);
+      setForm((prev) => ({ ...prev, heightCm: cm > 0 ? String(cm) : '' }));
+    }
+    setInputUnit(next);
   }
 
   function handleSubmit(e) {
@@ -26,8 +49,20 @@ export default function SingerForm({ onAdd }) {
       return;
     }
     setError('');
-    onAdd({ ...form, id: crypto.randomUUID(), vocalStrength: Number(form.vocalStrength), height: form.height ? Number(form.height) : '' });
+
+    const heightCm =
+      inputUnit === 'cm'
+        ? form.heightCm ? Number(form.heightCm) : ''
+        : ftIn.feet || ftIn.inches ? feetInchesToCm(ftIn.feet, ftIn.inches) : '';
+
+    onAdd({
+      ...form,
+      id: crypto.randomUUID(),
+      vocalStrength: Number(form.vocalStrength),
+      heightCm,
+    });
     setForm(emptyForm);
+    setFtIn({ feet: '', inches: '' });
   }
 
   return (
@@ -54,7 +89,7 @@ export default function SingerForm({ onAdd }) {
             value={form.name}
             onChange={handleChange}
             placeholder="e.g. Jane Smith"
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent"
+            className={INPUT_CLASS}
           />
         </div>
 
@@ -65,18 +100,17 @@ export default function SingerForm({ onAdd }) {
             name="voicePart"
             value={form.voicePart}
             onChange={handleChange}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent"
+            className={`${INPUT_CLASS} bg-white`}
           >
-            {VOICE_PARTS.map((p) => (
-              <option key={p}>{p}</option>
-            ))}
+            {VOICE_PARTS.map((p) => <option key={p}>{p}</option>)}
           </select>
         </div>
 
         {/* Vocal Strength */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
-            Vocal Strength — <span className="text-violet-600 font-semibold">{form.vocalStrength}</span>
+            Vocal Strength —{' '}
+            <span className="text-violet-600 font-semibold">{form.vocalStrength}</span>
           </label>
           <input
             type="range"
@@ -93,21 +127,65 @@ export default function SingerForm({ onAdd }) {
           </div>
         </div>
 
-        {/* Height */}
+        {/* Height with unit toggle */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            Height <span className="text-slate-400 font-normal">(cm, optional)</span>
-          </label>
-          <input
-            type="number"
-            name="height"
-            value={form.height}
-            onChange={handleChange}
-            placeholder="e.g. 170"
-            min={100}
-            max={220}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent"
-          />
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-sm font-medium text-slate-700">
+              Height <span className="text-slate-400 font-normal">(optional)</span>
+            </label>
+            <div className="flex rounded-md overflow-hidden border border-slate-200 text-xs">
+              {[['cm', 'cm'], ['ftin', 'ft/in']].map(([val, label]) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => switchUnit(val)}
+                  className={`px-2 py-0.5 font-medium transition-colors ${
+                    inputUnit === val
+                      ? 'bg-violet-600 text-white'
+                      : 'bg-white text-slate-500 hover:bg-slate-50'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {inputUnit === 'cm' ? (
+            <input
+              type="number"
+              name="heightCm"
+              value={form.heightCm}
+              onChange={handleChange}
+              placeholder="e.g. 170"
+              min={100}
+              max={250}
+              className={INPUT_CLASS}
+            />
+          ) : (
+            <div className="flex gap-2">
+              <input
+                type="number"
+                name="feet"
+                value={ftIn.feet}
+                onChange={handleFtInChange}
+                placeholder="ft"
+                min={3}
+                max={7}
+                className={`${INPUT_CLASS} w-1/2`}
+              />
+              <input
+                type="number"
+                name="inches"
+                value={ftIn.inches}
+                onChange={handleFtInChange}
+                placeholder="in"
+                min={0}
+                max={11}
+                className={`${INPUT_CLASS} w-1/2`}
+              />
+            </div>
+          )}
         </div>
 
         {/* Notes */}
@@ -120,7 +198,7 @@ export default function SingerForm({ onAdd }) {
             value={form.notes}
             onChange={handleChange}
             placeholder="e.g. soloist, new member…"
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent"
+            className={INPUT_CLASS}
           />
         </div>
       </div>
