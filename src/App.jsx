@@ -2,7 +2,7 @@ import { useState } from 'react';
 import SingerForm from './components/SingerForm';
 import SingerTable from './components/SingerTable';
 import SeatingChart from './components/SeatingChart';
-import { generateSeatingChart } from './utils/generateSeatingChart';
+import { generateSeatingChart, findBestPlacementForSinger } from './utils/generateSeatingChart';
 
 const SAMPLE_SINGERS = [
   { id: '1',  name: 'Alice Monroe',   voicePart: 'Soprano', vocalStrength: 5, heightCm: 162, notes: 'Section lead' },
@@ -30,7 +30,9 @@ export default function App() {
 
   function handleAdd(singer) {
     setSingers((prev) => [...prev, singer]);
-    setChart(null);
+    if (chart) {
+      setChart((prev) => findBestPlacementForSinger(singer, prev));
+    }
   }
 
   function handleRemove(id) {
