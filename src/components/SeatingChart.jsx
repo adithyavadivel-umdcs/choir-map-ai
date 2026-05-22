@@ -103,7 +103,7 @@ function SingerCard({ singer, singerCount, displayUnit }) {
 
   return (
     <div
-      className={`border rounded-xl text-left w-full ${colors.card}`}
+      className={`border rounded-xl text-left flex-1 flex flex-col overflow-hidden ${colors.card}`}
       style={{ padding: `${s.py}px ${s.px}px` }}
     >
       <div className="flex items-center mb-1" style={{ gap: 6 }}>
@@ -115,15 +115,15 @@ function SingerCard({ singer, singerCount, displayUnit }) {
           {singer.name}
         </span>
       </div>
-      <div className="flex items-center flex-wrap mb-1" style={{ gap: 4 }}>
+      <div className="flex items-center flex-nowrap mb-1 overflow-hidden" style={{ gap: 4 }}>
         <span
-          className={`inline-block font-medium rounded-full ${colors.badge}`}
+          className={`inline-block font-medium rounded-full flex-shrink-0 ${colors.badge}`}
           style={{ fontSize: s.badgeFz, padding: `${s.badgePy}px ${s.badgePx}px` }}
         >
           {singer.voicePart}
         </span>
         {heightStr && (
-          <span className="text-slate-400" style={{ fontSize: s.notesFz }}>{heightStr}</span>
+          <span className="text-slate-400 truncate min-w-0" style={{ fontSize: s.notesFz }}>{heightStr}</span>
         )}
       </div>
       <div className="flex" style={{ gap: 2 }}>
@@ -136,7 +136,7 @@ function SingerCard({ singer, singerCount, displayUnit }) {
         ))}
       </div>
       {singer.notes && (
-        <p className="text-slate-400 mt-1 truncate" style={{ fontSize: s.notesFz }} title={singer.notes}>
+        <p className="text-slate-400 mt-auto pt-1 truncate" style={{ fontSize: s.notesFz }} title={singer.notes}>
           {singer.notes}
         </p>
       )}
@@ -153,7 +153,7 @@ function SortableSingerCard({ singer, singerCount, displayUnit }) {
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, flex: '1 1 0', minWidth: 0 }}
+      style={{ transform: CSS.Transform.toString(transform), transition, flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column' }}
       className={`touch-none select-none cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-0' : ''}`}
       {...attributes}
       {...listeners}
@@ -167,7 +167,7 @@ function SortableSingerCard({ singer, singerCount, displayUnit }) {
 function DroppableRow({ id, style, children }) {
   const { setNodeRef } = useDroppable({ id });
   return (
-    <div ref={setNodeRef} style={style} className="flex flex-nowrap min-h-[56px]">
+    <div ref={setNodeRef} style={style} className="flex flex-nowrap items-stretch min-h-[56px]">
       {children}
     </div>
   );
