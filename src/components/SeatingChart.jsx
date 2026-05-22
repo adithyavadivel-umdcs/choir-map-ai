@@ -92,7 +92,7 @@ function computeNewChart(chart, activeId, overId) {
 }
 
 // Pure display card — no DnD concerns.
-function SingerCard({ singer, singerCount, displayUnit }) {
+function SingerCard({ singer, singerCount, displayUnit, onEdit }) {
   const colors = PART_COLORS[singer.voicePart] ?? {
     card: 'bg-slate-50 border-slate-200',
     badge: 'bg-slate-100 text-slate-600',
@@ -103,7 +103,7 @@ function SingerCard({ singer, singerCount, displayUnit }) {
 
   return (
     <div
-      className={`border rounded-xl text-left flex-1 flex flex-col overflow-hidden ${colors.card}`}
+      className={`group border rounded-xl text-left flex-1 flex flex-col overflow-hidden ${colors.card}`}
       style={{ padding: `${s.py}px ${s.px}px` }}
     >
       <div className="flex items-center mb-1" style={{ gap: 6 }}>
@@ -111,9 +111,21 @@ function SingerCard({ singer, singerCount, displayUnit }) {
           className={`rounded-full flex-shrink-0 ${colors.dot}`}
           style={{ width: s.dotSz, height: s.dotSz }}
         />
-        <span className="font-semibold text-slate-800 truncate" style={{ fontSize: s.nameFz }}>
+        <span className="font-semibold text-slate-800 truncate flex-1 min-w-0" style={{ fontSize: s.nameFz }}>
           {singer.name}
         </span>
+        {onEdit && (
+          <button
+            type="button"
+            onClick={onEdit}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="flex-shrink-0 text-slate-300 hover:text-violet-500 transition-colors opacity-0 group-hover:opacity-100 leading-none"
+            style={{ fontSize: s.nameFz }}
+            title="Edit singer"
+          >
+            ✎
+          </button>
+        )}
       </div>
       <div className="flex items-center flex-nowrap mb-1 overflow-hidden" style={{ gap: 4 }}>
         <span
@@ -145,7 +157,7 @@ function SingerCard({ singer, singerCount, displayUnit }) {
 }
 
 // Draggable wrapper around SingerCard.
-function SortableSingerCard({ singer, singerCount, displayUnit }) {
+function SortableSingerCard({ singer, singerCount, displayUnit, onEdit }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: singer.id,
   });
@@ -158,7 +170,7 @@ function SortableSingerCard({ singer, singerCount, displayUnit }) {
       {...attributes}
       {...listeners}
     >
-      <SingerCard singer={singer} singerCount={singerCount} displayUnit={displayUnit} />
+      <SingerCard singer={singer} singerCount={singerCount} displayUnit={displayUnit} onEdit={onEdit} />
     </div>
   );
 }
@@ -173,7 +185,7 @@ function DroppableRow({ id, style, children }) {
   );
 }
 
-export default function SeatingChart({ chart, displayUnit, onChartChange = () => {} }) {
+export default function SeatingChart({ chart, displayUnit, onChartChange = () => {}, onEditRequest }) {
   const [localChart, setLocalChart] = useState(chart);
   const [activeId, setActiveId]     = useState(null);
   const [overRowIdx, setOverRowIdx] = useState(null);
@@ -293,6 +305,7 @@ export default function SeatingChart({ chart, displayUnit, onChartChange = () =>
                       singer={singer}
                       singerCount={row.singers.length}
                       displayUnit={displayUnit}
+                      onEdit={onEditRequest ? () => onEditRequest(singer) : undefined}
                     />
                   ))}
                   {row.singers.length === 0 && (

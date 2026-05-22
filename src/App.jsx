@@ -2,6 +2,7 @@ import { useState } from 'react';
 import SingerForm from './components/SingerForm';
 import SingerTable from './components/SingerTable';
 import SeatingChart from './components/SeatingChart';
+import EditSingerModal from './components/EditSingerModal';
 import { generateSeatingChart, findBestPlacementForSinger } from './utils/generateSeatingChart';
 
 const SAMPLE_SINGERS = [
@@ -27,6 +28,7 @@ export default function App() {
   const [singers, setSingers] = useState(SAMPLE_SINGERS);
   const [chart, setChart] = useState(null);
   const [displayUnit, setDisplayUnit] = useState('cm');
+  const [selectedSinger, setSelectedSinger] = useState(null);
 
   function handleAdd(singer) {
     setSingers((prev) => [...prev, singer]);
@@ -44,6 +46,18 @@ export default function App() {
         singers: row.singers.filter((s) => s.id !== id),
       }));
     });
+  }
+
+  function handleEdit(updatedSinger) {
+    setSingers((prev) => prev.map((s) => s.id === updatedSinger.id ? updatedSinger : s));
+    setChart((prev) => {
+      if (!prev) return prev;
+      return prev.map((row) => ({
+        ...row,
+        singers: row.singers.map((s) => s.id === updatedSinger.id ? updatedSinger : s),
+      }));
+    });
+    setSelectedSinger(null);
   }
 
   function handleGenerate() {
@@ -94,7 +108,7 @@ export default function App() {
           {/* Left sidebar: form + roster + generate */}
           <div className="flex flex-col gap-4">
             <SingerForm onAdd={handleAdd} />
-            <SingerTable singers={singers} onRemove={handleRemove} displayUnit={displayUnit} />
+            <SingerTable singers={singers} onRemove={handleRemove} onEditRequest={setSelectedSinger} displayUnit={displayUnit} />
             <button
               onClick={handleGenerate}
               disabled={singers.length === 0}
@@ -106,7 +120,7 @@ export default function App() {
 
           {/* Right main area: seating chart */}
           <div>
-            {chart && <SeatingChart chart={chart} displayUnit={displayUnit} onChartChange={setChart} />}
+            {chart && <SeatingChart chart={chart} displayUnit={displayUnit} onChartChange={setChart} onEditRequest={setSelectedSinger} />}
             {!chart && (
               <div className="bg-white rounded-2xl shadow-sm border border-dashed border-slate-200 flex flex-col items-center justify-center min-h-[480px] text-center p-8">
                 <div className="text-5xl mb-4 opacity-20">🎵</div>
@@ -126,6 +140,14 @@ export default function App() {
       <footer className="max-w-7xl mx-auto px-6 py-4 text-center text-xs text-slate-400 border-t border-slate-200 mt-6">
         Choir Map AI — MVP demo
       </footer>
+
+      {selectedSinger && (
+        <EditSingerModal
+          singer={selectedSinger}
+          onSave={handleEdit}
+          onClose={() => setSelectedSinger(null)}
+        />
+      )}
     </div>
   );
 }

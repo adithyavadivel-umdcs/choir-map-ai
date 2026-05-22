@@ -33,7 +33,7 @@ function StrengthDots({ value, small = false }) {
   );
 }
 
-function RosterModal({ singers, onRemove, onClose, displayUnit }) {
+function RosterModal({ singers, onRemove, onEditRequest, onClose, displayUnit }) {
   useEffect(() => {
     const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handleKey);
@@ -91,13 +91,24 @@ function RosterModal({ singers, onRemove, onClose, displayUnit }) {
                   <td className="px-4 py-3 text-slate-500">{formatHeight(s.heightCm, displayUnit) ?? '—'}</td>
                   <td className="px-4 py-3 text-slate-400 max-w-[180px] truncate">{s.notes || '—'}</td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => onRemove(s.id)}
-                      className="text-slate-300 hover:text-red-500 transition-colors text-xs font-medium"
-                      title="Remove singer"
-                    >
-                      Remove
-                    </button>
+                    <div className="flex items-center justify-end gap-3">
+                      {onEditRequest && (
+                        <button
+                          onClick={() => { onEditRequest(s); onClose(); }}
+                          className="text-slate-300 hover:text-violet-500 transition-colors text-xs font-medium"
+                          title="Edit singer"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      <button
+                        onClick={() => onRemove(s.id)}
+                        className="text-slate-300 hover:text-red-500 transition-colors text-xs font-medium"
+                        title="Remove singer"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -109,7 +120,7 @@ function RosterModal({ singers, onRemove, onClose, displayUnit }) {
   );
 }
 
-export default function SingerTable({ singers, onRemove, displayUnit }) {
+export default function SingerTable({ singers, onRemove, onEditRequest, displayUnit }) {
   const [modalOpen, setModalOpen] = useState(false);
 
   if (singers.length === 0) {
@@ -155,13 +166,22 @@ export default function SingerTable({ singers, onRemove, displayUnit }) {
         {/* Singer preview list */}
         <div className="divide-y divide-slate-100">
           {preview.map((s) => (
-            <div key={s.id} className="px-4 py-2 flex items-center gap-2 min-w-0">
+            <div key={s.id} className="group px-4 py-2 flex items-center gap-2 min-w-0">
               <span className={`w-2 h-2 rounded-full flex-shrink-0 ${PART_DOT[s.voicePart] ?? 'bg-slate-400'}`} />
               <span className="text-sm text-slate-800 truncate flex-1 min-w-0">{s.name}</span>
               <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${PART_COLORS[s.voicePart] ?? 'bg-slate-100 text-slate-600'}`}>
                 {s.voicePart}
               </span>
               <StrengthDots value={s.vocalStrength} small />
+              {onEditRequest && (
+                <button
+                  onClick={() => onEditRequest(s)}
+                  className="flex-shrink-0 text-slate-300 hover:text-violet-500 transition-colors opacity-0 group-hover:opacity-100 text-sm leading-none"
+                  title="Edit singer"
+                >
+                  ✎
+                </button>
+              )}
             </div>
           ))}
           {overflow > 0 && (
@@ -179,6 +199,7 @@ export default function SingerTable({ singers, onRemove, displayUnit }) {
         <RosterModal
           singers={singers}
           onRemove={onRemove}
+          onEditRequest={onEditRequest}
           onClose={() => setModalOpen(false)}
           displayUnit={displayUnit}
         />
