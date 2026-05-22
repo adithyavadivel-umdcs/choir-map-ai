@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import SeatingChart from './SeatingChart';
+import { exportSingleSessionPdf, exportAllSessionsPdf } from '../utils/exportAttendancePdf';
 
 const STATUS_CONFIG = {
   present: { label: 'Present', short: 'P', active: 'bg-emerald-500 text-white border-emerald-500', text: 'text-emerald-600' },
@@ -216,7 +217,7 @@ function ActiveSession({ session, singers, chart, displayUnit, onMark, onSave, o
 
 // ─── History ───────────────────────────────────────────────────────────────
 
-function HistoryCard({ session }) {
+function HistoryCard({ session, choirName }) {
   const [expanded, setExpanded] = useState(false);
   const counts = countSavedStatuses(session.records ?? {});
   const records = Object.values(session.records ?? {}).sort((a, b) => {
@@ -252,7 +253,16 @@ function HistoryCard({ session }) {
             <p className="text-xs text-slate-400 mt-0.5 truncate">{session.notes}</p>
           )}
         </div>
-        <span className={`flex-shrink-0 text-slate-400 transition-transform mt-0.5 ${expanded ? 'rotate-180' : ''}`}>▾</span>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={(e) => { e.stopPropagation(); exportSingleSessionPdf(session, choirName); }}
+            className="text-xs font-medium text-violet-600 hover:text-violet-800 transition-colors px-2 py-0.5 rounded border border-violet-200 hover:border-violet-400 bg-white"
+            title="Export this session as PDF"
+          >
+            PDF
+          </button>
+          <span className={`text-slate-400 transition-transform mt-0.5 ${expanded ? 'rotate-180' : ''}`}>▾</span>
+        </div>
       </button>
 
       {expanded && (
@@ -280,22 +290,28 @@ function HistoryCard({ session }) {
   );
 }
 
-function AttendanceHistory({ sessions }) {
+function AttendanceHistory({ sessions, choirName }) {
   if (!sessions || sessions.length === 0) return null;
   const sorted = [...sessions].sort((a, b) => new Date(b.date) - new Date(a.date));
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-      <div className="px-6 py-4 border-b border-slate-100">
+      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-4">
         <h2 className="text-lg font-semibold text-slate-800">
           Attendance History
           <span className="ml-2 text-sm font-normal text-slate-400">
             ({sessions.length} session{sessions.length !== 1 ? 's' : ''})
           </span>
         </h2>
+        <button
+          onClick={() => exportAllSessionsPdf(sessions, choirName)}
+          className="flex-shrink-0 text-xs font-semibold text-violet-600 hover:text-violet-800 transition-colors px-3 py-1.5 rounded-lg border border-violet-200 hover:border-violet-400 bg-white"
+        >
+          Export All PDF
+        </button>
       </div>
       <div className="p-4 space-y-2">
         {sorted.map((session) => (
-          <HistoryCard key={session.id} session={session} />
+          <HistoryCard key={session.id} session={session} choirName={choirName} />
         ))}
       </div>
     </div>
@@ -323,7 +339,7 @@ export default function AttendancePanel({ choir, chart, displayUnit, onStart, on
   return (
     <div className="space-y-6">
       <SessionSetupForm singers={choir.singers} onStart={onStart} />
-      <AttendanceHistory sessions={choir.attendanceSessions ?? []} />
+      <AttendanceHistory sessions={choir.attendanceSessions ?? []} choirName={choir.name} />
     </div>
   );
 }

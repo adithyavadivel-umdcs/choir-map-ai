@@ -184,6 +184,7 @@ export default function App() {
           singerId: singer.id,
           singerName: singer.name,
           singerVoicePart: singer.voicePart,
+          singerNotes: singer.notes || '',
           status: statuses[singer.id] ?? 'present',
         };
       }
