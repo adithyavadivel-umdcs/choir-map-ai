@@ -6,6 +6,7 @@ import EditSingerModal from './components/EditSingerModal';
 import ChoirSelector from './components/ChoirSelector';
 import AttendancePanel from './components/AttendancePanel';
 import { generateSeatingChart, findBestPlacementForSinger } from './utils/generateSeatingChart';
+import AuthButton from './components/AuthButton';
 
 const SAMPLE_SINGERS = [
   { id: '1',  name: 'Alice Monroe',   voicePart: 'Soprano', vocalStrength: 5, heightCm: 162, notes: 'Section lead' },
@@ -255,6 +256,7 @@ export default function App() {
                 </button>
               ))}
             </div>
+            <AuthButton />
           </div>
         </div>
       </header>
