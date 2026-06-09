@@ -17,9 +17,22 @@ export default function AuthButton() {
     try {
       await signInWithGoogle();
     } catch (e) {
-      // user closed the popup — not a hard error, just ignore
-      if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
-        setError('Sign-in failed. Please try again.');
+      const code = e?.code ?? 'unknown';
+      // Silently ignore when the user explicitly closes the popup
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        setBusy(false);
+        return;
+      }
+      // Log the full error so the developer can see the exact Firebase code
+      console.error('[AuthButton] Google sign-in failed:', code, e?.message ?? e);
+      if (code === 'auth/popup-blocked') {
+        setError('Pop-up blocked — allow pop-ups for this site and try again.');
+      } else if (code === 'auth/unauthorized-domain') {
+        setError('This domain is not authorised in Firebase Console → Authentication → Settings → Authorised domains.');
+      } else if (code?.includes('api-key-not-valid') || code === 'auth/invalid-api-key') {
+        setError('Firebase API key is invalid. Check your .env file and Google Cloud Console API key restrictions.');
+      } else {
+        setError(`Sign-in failed (${code}). Check the browser console for details.`);
       }
     } finally {
       setBusy(false);
