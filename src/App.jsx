@@ -7,6 +7,12 @@ import ChoirSelector from './components/ChoirSelector';
 import AttendancePanel from './components/AttendancePanel';
 import { generateSeatingChart, findBestPlacementForSinger } from './utils/generateSeatingChart';
 import AuthButton from './components/AuthButton';
+import { subscribeToAuthState } from './firebase/authService';
+import {
+  loadChoirsFromFirestore,
+  saveChoirsToFirestore,
+  deleteChoirFromFirestore,
+} from './firebase/choirService';
 
 const SAMPLE_SINGERS = [
   { id: '1',  name: 'Alice Monroe',   voicePart: 'Soprano', vocalStrength: 5, heightCm: 162, notes: 'Section lead' },
@@ -61,9 +67,61 @@ export default function App() {
   const [selectedSinger, setSelectedSinger] = useState(null);
   const [view, setView] = useState('seating');
 
+  // undefined = auth state still loading, null = signed out, object = signed in
+  const [user, setUser] = useState(undefined);
+  // false while Firestore data is being fetched; saves are gated on this being true
+  const [syncReady, setSyncReady] = useState(false);
+
+  // Always mirror state to localStorage so signed-out users never lose data.
   useEffect(() => {
     localStorage.setItem('choir-map-ai', JSON.stringify({ choirs, activeChoirId }));
   }, [choirs, activeChoirId]);
+
+  // Subscribe to auth state. When a user signs in, load their choirs from
+  // Firestore before enabling saves so we never overwrite cloud data with
+  // stale local defaults.
+  useEffect(() => {
+    const unsub = subscribeToAuthState(async (firebaseUser) => {
+      if (firebaseUser) {
+        setSyncReady(false);
+        try {
+          const cloudChoirs = await loadChoirsFromFirestore(firebaseUser.uid);
+          if (cloudChoirs.length > 0) {
+            setState((prev) => {
+              const validId = cloudChoirs.some((c) => c.id === prev.activeChoirId)
+                ? prev.activeChoirId
+                : cloudChoirs[0].id;
+              return { choirs: cloudChoirs, activeChoirId: validId };
+            });
+          }
+          // Empty cloud means first sign-in; current local choirs will be
+          // written to Firestore once syncReady becomes true below.
+        } catch (err) {
+          console.error('[App] Firestore load failed:', err);
+        } finally {
+          setSyncReady(true);
+        }
+      } else {
+        // Signed out — disable cloud writes; localStorage keeps running.
+        setSyncReady(false);
+      }
+      setUser(firebaseUser ?? null);
+    });
+    return unsub;
+  }, []);
+
+  // Save all choirs to Firestore on every state change, debounced to avoid
+  // write-per-keystroke. Gated on syncReady so we never overwrite cloud data
+  // before the initial load completes.
+  useEffect(() => {
+    if (!user || !syncReady) return;
+    const timer = setTimeout(() => {
+      saveChoirsToFirestore(user.uid, choirs).catch((err) =>
+        console.error('[App] Firestore save failed:', err)
+      );
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [choirs, user, syncReady]);
 
   const activeChoir = choirs.find((c) => c.id === activeChoirId) ?? choirs[0];
   const singers = activeChoir.singers;
@@ -134,6 +192,11 @@ export default function App() {
   }
 
   function handleDeleteChoir(id) {
+    if (user && syncReady) {
+      deleteChoirFromFirestore(user.uid, id).catch((err) =>
+        console.error('[App] Firestore delete failed:', err)
+      );
+    }
     setState((prev) => {
       const remaining = prev.choirs.filter((c) => c.id !== id);
       if (remaining.length === 0) {
@@ -260,6 +323,13 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {/* Cloud sync loading banner — shown only while Firestore data is being fetched */}
+      {user && !syncReady && (
+        <div className="bg-violet-50 border-b border-violet-100 px-6 py-1.5 text-center text-xs text-violet-600">
+          Syncing your data from cloud…
+        </div>
+      )}
 
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-6 py-6">
